@@ -4,39 +4,31 @@ FROM postgres
 LABEL maintainer="mmachado@ibm.com"
 
 LABEL description="This is custom Docker Image for Conceptnet 5."
-# Adding the below environment variables allow you to create a database easily within 
-# the docker contianer
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 ENV POSTGRES_USER root
 ENV POSTGRES_PASSWORD root
 ENV POSTGRES_DB root
 
-# Install the necessary libraries for both postgres and conceptnet
 RUN apt update
+RUN apt -y upgrade
 RUN apt install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev -y
-RUN apt install postgresql postgresql-contrib postgresql-client -y
-RUN apt install libreadline-dev libffi-dev curl libbz2-dev libsqlite3-dev git unzip -y
-RUN apt install wget libhdf5-dev libmecab-dev mecab-ipadic-utf8 liblzma-dev lzma -y
+RUN apt install python3-pip python3-dev -y
+RUN apt install libreadline-dev libffi-dev curl libbz2-dev libsqlite3-dev -y
+RUN apt install libhdf5-dev libmecab-dev mecab-ipadic-utf8 liblzma-dev lzma -y
+RUN apt install supervisor procps systemd tmux wget unzip git nano -y
 
-# Install python 3.7.12
-# Somehow I couldn't just `apt install python3.7`. Here I manually download and compile it.
-RUN wget https://www.python.org/ftp/python/3.7.12/Python-3.7.12.tgz
-RUN tar -xf Python-3.7.12.tgz
-WORKDIR "/Python-3.7.12"
-RUN ./configure --enable-optimizations --enable-loadable-sqlite-extensions
-RUN make -j$(nproc)
-RUN make install
-RUN apt install python3-pip python3-dev  -y
+COPY create-multiple-postgresql-databases.sh /docker-entrypoint-initdb.d/
 
-# Install conceptnet
-WORKDIR "/"
-RUN git clone --single-branch --branch develop https://github.com/tae898/conceptnet5.git
-WORKDIR "/conceptnet5"
+COPY . /usr/src
+WORKDIR /usr/src
 RUN mkdir data
-# modify `build.sh` in place to speed up processing
-RUN pip3 install --upgrade pip
-RUN pip3 install wheel ipadic
-RUN pip3 install -e '.[vectors]'
+
+RUN pip install -U pip
+RUN pip install wheel ipadic pytest PyLD language_data
+RUN pip install -e .
+RUN pip install -e '.[vectors]'
 RUN pip install -e web
 
-CMD [ "docker-entrypoint.sh", "-c", "'shared_buffers=256MB'","-c", "'max_connections=200'" ]
+CMD ["docker-entrypoint.sh", "-c", "shared_buffers=1GB", "-c", "max_wal_size=2GB"]
