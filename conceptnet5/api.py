@@ -234,7 +234,7 @@ def query_related(uri, filter=None, limit=20):
     return response
 
 
-def query_paginated(query, offset=0, limit=100):
+def query_paginated(query, offset=0, limit=50):
     """
     Search ConceptNet for edges matching a query.
 
